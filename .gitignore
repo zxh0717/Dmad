@@ -83,3 +83,9 @@ spark-warehouse/
 *.Rproj.*
 
 .Rproj.user
+
+# For ZXH
+!conf/log4j.properties
+!conf/slaves
+!conf/spark-defaults.conf
+!conf/spark-env.sh
