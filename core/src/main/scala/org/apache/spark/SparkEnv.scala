@@ -158,6 +158,7 @@ object SparkEnv extends Logging {
       listenerBus: LiveListenerBus,
       numCores: Int,
       mockOutputCommitCoordinator: Option[OutputCommitCoordinator] = None): SparkEnv = {
+    logInfo(s"createDriverEnv, numCores= ${numCores}")
     assert(conf.contains("spark.driver.host"), "spark.driver.host is not set on the driver!")
     assert(conf.contains("spark.driver.port"), "spark.driver.port is not set on the driver!")
     val hostname = conf.get("spark.driver.host")
@@ -186,6 +187,7 @@ object SparkEnv extends Logging {
       port: Int,
       numCores: Int,
       isLocal: Boolean): SparkEnv = {
+    logInfo(s"createExecutorEnv, executorId= ${executorId}, hostname= ${hostname}, port= ${port}")
     val env = create(
       conf,
       executorId,
@@ -213,6 +215,8 @@ object SparkEnv extends Logging {
       listenerBus: LiveListenerBus = null,
       mockOutputCommitCoordinator: Option[OutputCommitCoordinator] = None): SparkEnv = {
 
+    logInfo(s"create, executorId= ${executorId}, hostname= ${hostname}, port= ${port}")
+    logInfo(s"create, conf= ${conf.toDebugString}")
     // Listener bus is only used on the driver
     if (isDriver) {
       assert(listenerBus != null, "Attempted to create driver SparkEnv with null listener bus!")
