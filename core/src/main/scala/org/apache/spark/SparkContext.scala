@@ -413,10 +413,12 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
 
     // "_jobProgressListener" should be set up before creating SparkEnv because when creating
     // "SparkEnv", some messages will be posted to "listenerBus" and we should not miss them.
+    logInfo(s"create JobProgressListener")
     _jobProgressListener = new JobProgressListener(_conf)
     listenerBus.addListener(jobProgressListener)
 
     // Create the Spark execution environment (cache, map output tracker, etc)
+    logInfo(s"Create the Spark execution environment")
     _env = createSparkEnv(_conf, isLocal, listenerBus)
     SparkEnv.set(_env)
 
@@ -426,6 +428,7 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
       _conf.set("spark.repl.class.uri", replUri)
     }
 
+    logInfo(s"Create SparkStatusTracker")
     _statusTracker = new SparkStatusTracker(this)
 
     _progressBar =
@@ -486,9 +489,11 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
       HeartbeatReceiver.ENDPOINT_NAME, new HeartbeatReceiver(this))
 
     // Create and start the scheduler
+    logInfo(s"Create and start the scheduler")
     val (sched, ts) = SparkContext.createTaskScheduler(this, master, deployMode)
     _schedulerBackend = sched
     _taskScheduler = ts
+    logInfo(s"Create DAGScheduler")
     _dagScheduler = new DAGScheduler(this)
     _heartbeatReceiver.ask[Boolean](TaskSchedulerIsSet)
 
@@ -497,6 +502,7 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
     _taskScheduler.start()
 
     _applicationId = _taskScheduler.applicationId()
+    logInfo(s"_applicationId = ${_applicationId}")
     _applicationAttemptId = taskScheduler.applicationAttemptId()
     _conf.set("spark.app.id", _applicationId)
     _ui.foreach(_.setAppId(_applicationId))
@@ -510,6 +516,7 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
 
     _eventLogger =
       if (isEventLogEnabled) {
+        logInfo(s"create EventLoggingListener")
         val logger =
           new EventLoggingListener(_applicationId, _applicationAttemptId, _eventLogDir.get,
             _conf, _hadoopConfiguration)
@@ -524,6 +531,7 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
     val dynamicAllocationEnabled = Utils.isDynamicAllocationEnabled(_conf)
     _executorAllocationManager =
       if (dynamicAllocationEnabled) {
+        logInfo(s"create ExecutorAllocationManager")
         Some(new ExecutorAllocationManager(this, listenerBus, _conf))
       } else {
         None
@@ -532,6 +540,7 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
 
     _cleaner =
       if (_conf.getBoolean("spark.cleaner.referenceTracking", true)) {
+        logInfo(s"create ContextCleaner")
         Some(new ContextCleaner(this))
       } else {
         None
@@ -578,6 +587,7 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
    * dump message back to the driver.
    */
   private[spark] def getExecutorThreadDump(executorId: String): Option[Array[ThreadStackTrace]] = {
+    logInfo(s"getExecutorThreadDump ${executorId}")
     try {
       if (executorId == SparkContext.DRIVER_IDENTIFIER) {
         Some(Utils.getThreadDump())
@@ -610,6 +620,7 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
    * As a result, local properties may propagate unpredictably.
    */
   def setLocalProperty(key: String, value: String) {
+    logInfo(s"setLocalProperty key = ${key}, value = ${value}")
     if (value == null) {
       localProperties.get.remove(key)
     } else {
@@ -626,6 +637,7 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
 
   /** Set a human readable description of the current job. */
   def setJobDescription(value: String) {
+    logInfo(s"setJobDescription value = ${value}")
     setLocalProperty(SparkContext.SPARK_JOB_DESCRIPTION, value)
   }
 
@@ -654,6 +666,7 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
    * where HDFS may respond to Thread.interrupt() by marking nodes as dead.
    */
   def setJobGroup(groupId: String, description: String, interruptOnCancel: Boolean = false) {
+    logInfo(s"setJobGroup groupId = ${groupId}, description = ${description}")
     setLocalProperty(SparkContext.SPARK_JOB_DESCRIPTION, description)
     setLocalProperty(SparkContext.SPARK_JOB_GROUP_ID, groupId)
     // Note: Specifying interruptOnCancel in setJobGroup (rather than cancelJobGroup) avoids
@@ -665,6 +678,7 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
 
   /** Clear the current thread's job group ID and its description. */
   def clearJobGroup() {
+    logInfo(s"clearJobGroup")
     setLocalProperty(SparkContext.SPARK_JOB_DESCRIPTION, null)
     setLocalProperty(SparkContext.SPARK_JOB_GROUP_ID, null)
     setLocalProperty(SparkContext.SPARK_JOB_INTERRUPT_ON_CANCEL, null)
@@ -1471,6 +1485,7 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
   private[spark] override def getExecutorIds(): Seq[String] = {
     schedulerBackend match {
       case b: CoarseGrainedSchedulerBackend =>
+        logInfo(s"getExecutorIds CoarseGrainedSchedulerBackend = ${b.toString}")
         b.getExecutorIds()
       case _ =>
         logWarning("Requesting executors is only supported in coarse-grained mode")
@@ -1500,6 +1515,8 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
     ): Boolean = {
     schedulerBackend match {
       case b: CoarseGrainedSchedulerBackend =>
+        logInfo(s"requestTotalExecutors CoarseGrainedSchedulerBackend = ${b.toString}," +
+        s"${numExecutors.toString}, ${localityAwareTasks.toString}")
         b.requestTotalExecutors(numExecutors, localityAwareTasks, hostToLocalTaskCount)
       case _ =>
         logWarning("Requesting executors is only supported in coarse-grained mode")
@@ -1516,6 +1533,8 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
   override def requestExecutors(numAdditionalExecutors: Int): Boolean = {
     schedulerBackend match {
       case b: CoarseGrainedSchedulerBackend =>
+        logInfo(s"requestExecutors CoarseGrainedSchedulerBackend = ${b.toString}, " +
+          s" ${numAdditionalExecutors.toString}")
         b.requestExecutors(numAdditionalExecutors)
       case _ =>
         logWarning("Requesting executors is only supported in coarse-grained mode")
@@ -1538,6 +1557,7 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
   override def killExecutors(executorIds: Seq[String]): Boolean = {
     schedulerBackend match {
       case b: CoarseGrainedSchedulerBackend =>
+        logInfo(s"killExecutors CoarseGrainedSchedulerBackend = ${b.toString}")
         b.killExecutors(executorIds, replace = false, force = true)
       case _ =>
         logWarning("Killing executors is only supported in coarse-grained mode")
@@ -1574,6 +1594,7 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
    * @return whether the request is received.
    */
   private[spark] def killAndReplaceExecutor(executorId: String): Boolean = {
+    logInfo(s"killAndReplaceExecutor ${executorId}")
     schedulerBackend match {
       case b: CoarseGrainedSchedulerBackend =>
         b.killExecutors(Seq(executorId), replace = true, force = true)
@@ -1592,7 +1613,9 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
    */
   def getExecutorMemoryStatus: Map[String, (Long, Long)] = {
     assertNotStopped()
+    logInfo(s"getExecutorMemoryStatus")
     env.blockManager.master.getMemoryStatus.map { case(blockManagerId, mem) =>
+      logInfo(s"getExecutorMemoryStatus ${blockManagerId.host}:${blockManagerId.port}")
       (blockManagerId.host + ":" + blockManagerId.port, mem)
     }
   }
@@ -1604,6 +1627,7 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
    */
   @DeveloperApi
   def getRDDStorageInfo: Array[RDDInfo] = {
+    logInfo(s"getRDDStorageInfo")
     getRDDStorageInfo(_ => true)
   }
 
@@ -1611,6 +1635,7 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
     assertNotStopped()
     val rddInfos = persistentRdds.values.filter(filter).map(RDDInfo.fromRdd).toArray
     StorageUtils.updateRddInfo(rddInfos, getExecutorStorageStatus)
+    logInfo(s"getRDDStorageInfo ${rddInfos.toString}")
     rddInfos.filter(_.isCached)
   }
 
@@ -1627,6 +1652,7 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
   @DeveloperApi
   def getExecutorStorageStatus: Array[StorageStatus] = {
     assertNotStopped()
+    logInfo(s"getExecutorStorageStatus")
     env.blockManager.master.getStorageStatus
   }
 
@@ -1638,6 +1664,7 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
   def getAllPools: Seq[Schedulable] = {
     assertNotStopped()
     // TODO(xiajunluan): We should take nested pools into account
+    logInfo(s"getAllPools")
     taskScheduler.rootPool.schedulableQueue.asScala.toSeq
   }
 
@@ -1648,6 +1675,7 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
   @DeveloperApi
   def getPoolForName(pool: String): Option[Schedulable] = {
     assertNotStopped()
+    logInfo(s"getPoolForName pool = ${pool}")
     Option(taskScheduler.rootPool.schedulableNameToSchedulable.get(pool))
   }
 
@@ -1656,6 +1684,7 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
    */
   def getSchedulingMode: SchedulingMode.SchedulingMode = {
     assertNotStopped()
+    logInfo(s"getSchedulingMode")
     taskScheduler.schedulingMode
   }
 
@@ -1666,6 +1695,7 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
    * @return list of preferred locations for the partition
    */
   private [spark] def getPreferredLocs(rdd: RDD[_], partition: Int): Seq[TaskLocation] = {
+    logInfo(s"getPreferredLocs")
     dagScheduler.getPreferredLocs(rdd, partition)
   }
 
@@ -1673,6 +1703,7 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
    * Register an RDD to be persisted in memory and/or disk storage
    */
   private[spark] def persistRDD(rdd: RDD[_]) {
+    logInfo(s"persistRDD")
     persistentRdds(rdd.id) = rdd
   }
 
@@ -1680,6 +1711,7 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
    * Unpersist an RDD from memory and/or disk storage
    */
   private[spark] def unpersistRDD(rddId: Int, blocking: Boolean = true) {
+    logInfo(s"unpersistRDD")
     env.blockManager.master.removeRdd(rddId, blocking)
     persistentRdds.remove(rddId)
     listenerBus.post(SparkListenerUnpersistRDD(rddId))
@@ -1695,6 +1727,7 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
       logWarning("null specified as parameter to addJar")
     } else {
       var key = ""
+      logInfo(s"addJar, ${path}")
       if (path.contains("\\")) {
         // For local paths with backslashes on Windows, URI throws an exception
         key = env.rpcEnv.fileServer.addJar(new File(path))
@@ -1753,6 +1786,7 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
 
   // Shut down the SparkContext.
   def stop() {
+    logInfo(s"stop")
     if (LiveListenerBus.withinListenerThread.value) {
       throw new SparkException(
         s"Cannot stop SparkContext within listener thread of ${LiveListenerBus.name}")
@@ -1836,6 +1870,7 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
    * of actions and RDDs.
    */
   def setCallSite(shortCallSite: String) {
+    logInfo(s"setCallSite ${shortCallSite}")
     setLocalProperty(CallSite.SHORT_FORM, shortCallSite)
   }
 
@@ -1844,6 +1879,7 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
    * of actions and RDDs.
    */
   private[spark] def setCallSite(callSite: CallSite) {
+    logInfo(s"setCallSite")
     setLocalProperty(CallSite.SHORT_FORM, callSite.shortForm)
     setLocalProperty(CallSite.LONG_FORM, callSite.longForm)
   }
@@ -1853,6 +1889,7 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
    * of actions and RDDs.
    */
   def clearCallSite() {
+    logInfo(s"clearCallSite")
     setLocalProperty(CallSite.SHORT_FORM, null)
     setLocalProperty(CallSite.LONG_FORM, null)
   }
@@ -1862,6 +1899,7 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
    * has overridden the call site using `setCallSite()`, this will return the user's version.
    */
   private[spark] def getCallSite(): CallSite = {
+    logInfo(s"getCallSite")
     lazy val callSite = Utils.getCallSite()
     CallSite(
       Option(getLocalProperty(CallSite.SHORT_FORM)).getOrElse(callSite.shortForm),
@@ -1881,6 +1919,7 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
     if (stopped.get()) {
       throw new IllegalStateException("SparkContext has been shutdown")
     }
+    logInfo(s"runJob ${rdd.toDebugString}")
     val callSite = getCallSite
     val cleanedFunc = clean(func)
     logInfo("Starting job: " + callSite.shortForm)
@@ -2005,6 +2044,7 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
   private[spark] def submitMapStage[K, V, C](dependency: ShuffleDependency[K, V, C])
       : SimpleFutureAction[MapOutputStatistics] = {
     assertNotStopped()
+    logInfo(s"submitMapStage")
     val callSite = getCallSite()
     var result: MapOutputStatistics = null
     val waiter = dagScheduler.submitMapStage(
@@ -2021,22 +2061,26 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
    */
   def cancelJobGroup(groupId: String) {
     assertNotStopped()
+    logInfo(s"cancelJobGroup")
     dagScheduler.cancelJobGroup(groupId)
   }
 
   /** Cancel all jobs that have been scheduled or are running.  */
   def cancelAllJobs() {
     assertNotStopped()
+    logInfo(s"cancelAllJobs")
     dagScheduler.cancelAllJobs()
   }
 
   /** Cancel a given job if it's scheduled or running */
   private[spark] def cancelJob(jobId: Int) {
+    logInfo(s"cancelJob")
     dagScheduler.cancelJob(jobId)
   }
 
   /** Cancel a given stage and all jobs associated with it */
   private[spark] def cancelStage(stageId: Int) {
+    logInfo(s"cancelStage")
     dagScheduler.cancelStage(stageId)
   }
 
@@ -2053,6 +2097,7 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
    *   serializable
    */
   private[spark] def clean[F <: AnyRef](f: F, checkSerializable: Boolean = true): F = {
+    logInfo(s"clean")
     ClosureCleaner.clean(f, checkSerializable)
     f
   }
@@ -2067,6 +2112,7 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
     // Otherwise, the driver may attempt to reconstruct the checkpointed RDD from
     // its own local file system, which is incorrect because the checkpoint files
     // are actually on the executor machines.
+    logInfo(s"setCheckpointDir ${directory}")
     if (!isLocal && Utils.nonLocalPaths(directory).isEmpty) {
       logWarning("Spark is not running in local mode, therefore the checkpoint directory " +
         s"must not be on the local filesystem. Directory '$directory' " +
@@ -2086,6 +2132,7 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
   /** Default level of parallelism to use when not given by user (e.g. parallelize and makeRDD). */
   def defaultParallelism: Int = {
     assertNotStopped()
+    logInfo(s"defaultParallelism")
     taskScheduler.defaultParallelism
   }
 
@@ -2112,6 +2159,7 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
    */
   private def setupAndStartListenerBus(): Unit = {
     // Use reflection to instantiate listeners specified via `spark.extraListeners`
+    logInfo(s"setupAndStartListenerBus")
     try {
       val listenerClassNames: Seq[String] =
         conf.get("spark.extraListeners", "").split(',').map(_.trim).filter(_ != "")
@@ -2164,18 +2212,21 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
   private def postApplicationStart() {
     // Note: this code assumes that the task scheduler has been initialized and has contacted
     // the cluster manager to get an application ID (in case the cluster manager provides one).
+    logInfo(s"postApplicationStart")
     listenerBus.post(SparkListenerApplicationStart(appName, Some(applicationId),
       startTime, sparkUser, applicationAttemptId, schedulerBackend.getDriverLogUrls))
   }
 
   /** Post the application end event */
   private def postApplicationEnd() {
+    logInfo(s"postApplicationEnd")
     listenerBus.post(SparkListenerApplicationEnd(System.currentTimeMillis))
   }
 
   /** Post the environment update event once the task scheduler is ready */
   private def postEnvironmentUpdate() {
     if (taskScheduler != null) {
+      logInfo(s"postEnvironmentUpdate")
       val schedulingMode = getSchedulingMode.toString
       val addedJarPaths = addedJars.keys.toSeq
       val addedFilePaths = addedFiles.keys.toSeq
@@ -2446,12 +2497,14 @@ object SparkContext extends Logging {
 
     master match {
       case "local" =>
+        logInfo(s"createTaskScheduler => local")
         val scheduler = new TaskSchedulerImpl(sc, MAX_LOCAL_TASK_FAILURES, isLocal = true)
         val backend = new LocalSchedulerBackend(sc.getConf, scheduler, 1)
         scheduler.initialize(backend)
         (backend, scheduler)
 
       case LOCAL_N_REGEX(threads) =>
+        logInfo(s"createTaskScheduler => LOCAL_N_REGEX")
         def localCpuCount: Int = Runtime.getRuntime.availableProcessors()
         // local[*] estimates the number of cores on the machine; local[N] uses exactly N threads.
         val threadCount = if (threads == "*") localCpuCount else threads.toInt
@@ -2464,6 +2517,7 @@ object SparkContext extends Logging {
         (backend, scheduler)
 
       case LOCAL_N_FAILURES_REGEX(threads, maxFailures) =>
+        logInfo(s"createTaskScheduler => LOCAL_N_FAILURES_REGEX")
         def localCpuCount: Int = Runtime.getRuntime.availableProcessors()
         // local[*, M] means the number of cores on the computer with M failures
         // local[N, M] means exactly N threads with M failures
@@ -2474,6 +2528,7 @@ object SparkContext extends Logging {
         (backend, scheduler)
 
       case SPARK_REGEX(sparkUrl) =>
+        logInfo(s"createTaskScheduler => SPARK_REGEX")
         val scheduler = new TaskSchedulerImpl(sc)
         val masterUrls = sparkUrl.split(",").map("spark://" + _)
         val backend = new StandaloneSchedulerBackend(scheduler, sc, masterUrls)
@@ -2482,6 +2537,7 @@ object SparkContext extends Logging {
 
       case LOCAL_CLUSTER_REGEX(numSlaves, coresPerSlave, memoryPerSlave) =>
         // Check to make sure memory requested <= memoryPerSlave. Otherwise Spark will just hang.
+        logInfo(s"createTaskScheduler => LOCAL_CLUSTER_REGEX")
         val memoryPerSlaveInt = memoryPerSlave.toInt
         if (sc.executorMemory > memoryPerSlaveInt) {
           throw new SparkException(
@@ -2501,6 +2557,7 @@ object SparkContext extends Logging {
         (backend, scheduler)
 
       case MESOS_REGEX(mesosUrl) =>
+        logInfo(s"createTaskScheduler => MESOS_REGEX")
         MesosNativeLibrary.load()
         val scheduler = new TaskSchedulerImpl(sc)
         val coarseGrained = sc.conf.getBoolean("spark.mesos.coarse", defaultValue = true)
@@ -2513,6 +2570,7 @@ object SparkContext extends Logging {
         (backend, scheduler)
 
       case masterUrl =>
+        logInfo(s"createTaskScheduler => masterUrl")
         val cm = getClusterManager(masterUrl) match {
           case Some(clusterMgr) => clusterMgr
           case None => throw new SparkException("Could not parse Master URL: '" + master + "'")

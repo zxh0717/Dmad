@@ -74,6 +74,6 @@ export SPARK_WORKER_MEMORY=2g
 export HADOOP_HOME=/home/zhangxh/zxh/code/source/hadoop/hadoop/hadoop-dist/target/hadoop-3.0.0-alpha2-SNAPSHOT
 export HADOOP_CONF_DIR=$HADOOP_HOME/etc/hadoop
 export SPARK_EXECUTOR_MEMORY=2g
-export SPARK_DRIVER_MEMORY=4G
-export SPARK_WORKER_CORES=8
+export SPARK_DRIVER_MEMORY=2G
+export SPARK_WORKER_CORES=4
 
