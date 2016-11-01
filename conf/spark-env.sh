@@ -69,11 +69,12 @@ export SCALA_HOME=/home/zhangxh/zxh/tools/hadoop/scala/scala-2.11.8
 # export SPARK_MASTER_IP=Master
 # export SPARK_MASTER_HOST=Master
 export SPARK_DAEMON_JAVA_OPTS="-Dspark.deploy.recoveryMode=ZOOKEEPER -Dspark.deploy.zookeeper.url=Master:2181,zhangxhvm2:2181 -Dspark.deploy.zookeeper.dir=/spark"
-export SPARK_WORKER_MEMORY=2g
+export SPARK_WORKER_MEMORY=4g
 # export HADOOP_HOME=/home/zhangxh/zxh/code/source/hadoop/hadoop-2.6.4-src/hadoop-dist/target/hadoop-2.6.4
-export HADOOP_HOME=/home/zhangxh/zxh/code/source/hadoop/hadoop/hadoop-dist/target/hadoop-3.0.0-alpha2-SNAPSHOT
+# export HADOOP_HOME=/home/zhangxh/zxh/code/source/hadoop/hadoop/hadoop-dist/target/hadoop-3.0.0-alpha2-SNAPSHOT
+export HADOOP_HOME=/home/zhangxh/zxh/code/source/hadoop/hadoop/hadoop-dist/target/hadoop-2.7.1
 export HADOOP_CONF_DIR=$HADOOP_HOME/etc/hadoop
-export SPARK_EXECUTOR_MEMORY=2g
-export SPARK_DRIVER_MEMORY=2G
+export SPARK_EXECUTOR_MEMORY=4g
+export SPARK_DRIVER_MEMORY=4G
 export SPARK_WORKER_CORES=4
 

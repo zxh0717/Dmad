@@ -227,7 +227,7 @@ class DAGScheduler(
       // (taskId, stageId, stageAttemptId, accumUpdates)
       accumUpdates: Array[(Long, Int, Int, Seq[AccumulableInfo])],
       blockManagerId: BlockManagerId): Boolean = {
-    logInfo(s"executorHeartbeatReceived ${execId}, ${blockManagerId.toString}")
+    // logInfo(s"executorHeartbeatReceived ${execId}, ${blockManagerId.toString}")
     listenerBus.post(SparkListenerExecutorMetricsUpdate(execId, accumUpdates))
     blockManagerMaster.driverEndpoint.askWithRetry[Boolean](
       BlockManagerHeartbeat(blockManagerId), new RpcTimeout(600 seconds, "BlockManagerHeartbeat"))
@@ -1238,7 +1238,7 @@ class DAGScheduler(
             }
 
           case smt: ShuffleMapTask =>
-            logInfo(s"handleTaskCompletion")
+            logInfo(s"ShuffleMapTask")
             val shuffleStage = stage.asInstanceOf[ShuffleMapStage]
             updateAccumulators(event)
             val status = event.result.asInstanceOf[MapStatus]
